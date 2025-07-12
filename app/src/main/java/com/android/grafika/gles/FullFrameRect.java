@@ -80,10 +80,19 @@ public class FullFrameRect {
      */
     public void drawFrame(int textureId, float[] texMatrix, int videoWidth, int videoHeight) {
         // Use the identity matrix for MVP so our 2x2 FULL_RECTANGLE covers the viewport.
-        mProgram.draw(GlUtil.IDENTITY_MATRIX, mRectDrawable.getVertexArray(), 0,
-                mRectDrawable.getVertexCount(), mRectDrawable.getCoordsPerVertex(),
+        mProgram.draw(
+                GlUtil.IDENTITY_MATRIX,
+                mRectDrawable.getVertexArray(),
+                0,
+                mRectDrawable.getVertexCount(),
+                mRectDrawable.getCoordsPerVertex(),
                 mRectDrawable.getVertexStride(),
-                texMatrix, mRectDrawable.getTexCoordArray(), textureId,
-                mRectDrawable.getTexCoordStride(), videoWidth, videoHeight);
+                texMatrix,
+                mRectDrawable.getTexCoordArray(),
+                textureId,
+                mRectDrawable.getTexCoordStride(),
+                videoWidth,
+                videoHeight
+        );
     }
 }

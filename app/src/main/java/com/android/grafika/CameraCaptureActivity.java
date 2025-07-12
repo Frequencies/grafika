@@ -146,7 +146,7 @@ public class CameraCaptureActivity extends Activity
 
     private int mCameraPreviewWidth, mCameraPreviewHeight;
 
-    private static TextureMovieEncoder sVideoEncoder = new TextureMovieEncoder();
+    private static final TextureMovieEncoder sVideoEncoder = new TextureMovieEncoder();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -168,7 +168,10 @@ public class CameraCaptureActivity extends Activity
 
         mRecordingEnabled = sVideoEncoder.isRecording();
 
-        mGLView = (GLSurfaceView) findViewById(R.id.cameraPreview_surfaceView);
+        mGLView = findViewById(R.id.cameraPreview_surfaceView);
+        mGLView.setBackgroundColor(0x00000000); // Transparent
+        mGLView.setZOrderOnTop(true);
+        mGLView.getHolder().setFormat(android.graphics.PixelFormat.TRANSLUCENT);
         mGLView.setEGLContextClientVersion(2);     // select GLES 2.0
         mRenderer = new CameraSurfaceRenderer(mCameraHandler, sVideoEncoder, outputFile);
         mGLView.setRenderer(mRenderer);
@@ -297,23 +300,19 @@ public class CameraCaptureActivity extends Activity
             previewFacts += " @[" + (fpsRange[0] / 1000.0) +
                     " - " + (fpsRange[1] / 1000.0) + "] fps";
         }
-        TextView text = (TextView) findViewById(R.id.cameraParams_text);
+        TextView text = findViewById(R.id.cameraParams_text);
         text.setText(previewFacts);
 
         mCameraPreviewWidth = mCameraPreviewSize.width;
         mCameraPreviewHeight = mCameraPreviewSize.height;
 
 
-        AspectFrameLayout layout = (AspectFrameLayout) findViewById(R.id.cameraPreview_afl);
+        AspectFrameLayout layout = findViewById(R.id.cameraPreview_afl);
 
         Display display = ((WindowManager) getSystemService(WINDOW_SERVICE)).getDefaultDisplay();
 
-        int rotation = display.getRotation();
-        if (rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) {
-            layout.setAspectRatio((double) mCameraPreviewHeight / mCameraPreviewWidth);
-        } else {
-            layout.setAspectRatio((double) mCameraPreviewWidth / mCameraPreviewHeight);
-        }
+        layout.setAspectRatio(1.0);
+        layout.setBackgroundColor(0x00000000); // Transparent
         if (display.getRotation() == Surface.ROTATION_0) {
             mCamera.setDisplayOrientation(90);
         } else if (display.getRotation() == Surface.ROTATION_270) {
@@ -343,7 +342,7 @@ public class CameraCaptureActivity extends Activity
     }
 
     private void updateControls() {
-        Button toggleRelease = (Button) findViewById(R.id.toggleRecording_button);
+        Button toggleRelease = findViewById(R.id.toggleRecording_button);
         int id = mRecordingEnabled ?
                 R.string.toggleRecordingOff : R.string.toggleRecordingOn;
         toggleRelease.setText(id);
@@ -368,7 +367,7 @@ public class CameraCaptureActivity extends Activity
     static class CameraHandler extends Handler {
         public static final int MSG_SET_SURFACE_TEXTURE = 0;
 
-        private WeakReference<CameraCaptureActivity> mWeakActivity;
+        private final WeakReference<CameraCaptureActivity> mWeakActivity;
 
         public CameraHandler(CameraCaptureActivity activity) {
             mWeakActivity = new WeakReference<CameraCaptureActivity>(activity);
@@ -408,9 +407,9 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
     private static final int RECORDING_ON = 1;
     private static final int RECORDING_RESUMED = 2;
 
-    private CameraCaptureActivity.CameraHandler mCameraHandler;
-    private TextureMovieEncoder mVideoEncoder;
-    private File mOutputFile;
+    private final CameraCaptureActivity.CameraHandler mCameraHandler;
+    private final TextureMovieEncoder mVideoEncoder;
+    private final File mOutputFile;
 
     private FullFrameRect mFullScreen;
     private FullFrameRect mFullScreen2D; // For drawing 2D FBO texture to screen
@@ -421,7 +420,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
     private SurfaceTexture mSurfaceTexture;
     private boolean mRecordingEnabled;
     private int mRecordingStatus;
-    private int mFrameCount;
+    private final int mFrameCount;
 
     // width/height of the incoming camera preview frames
     private boolean mIncomingSizeUpdated;
@@ -570,6 +569,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
         int[] tex = new int[1];
         GLES20.glGenFramebuffers(1, fbo, 0);
         GLES20.glGenTextures(1, tex, 0);
+        GLES20.glClearColor(0f, 0f, 0f, 0f);
         mFboId = fbo[0];
         mFboTexId = tex[0];
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mFboTexId);
@@ -686,7 +686,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
     private void drawBox() {
         GLES20.glEnable(GLES20.GL_SCISSOR_TEST);
         GLES20.glScissor(0, 0, 100, 100);
-        GLES20.glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+        GLES20.glClearColor(0f, 0f, 0f, 0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
     }
