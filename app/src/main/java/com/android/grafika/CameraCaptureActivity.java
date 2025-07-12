@@ -148,6 +148,8 @@ public class CameraCaptureActivity extends Activity
 
     private static final TextureMovieEncoder sVideoEncoder = new TextureMovieEncoder();
 
+    private boolean isFrontCamera = true; // Default to front camera
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -157,12 +159,8 @@ public class CameraCaptureActivity extends Activity
         TextView fileText = findViewById(R.id.cameraOutputFile_text);
         fileText.setText(outputFile.toString());
 
-        Spinner spinner = findViewById(R.id.cameraFilter_spinner);
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
-                R.array.cameraFilterNames, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        spinner.setOnItemSelectedListener(this);
+        Button switchCameraButton = findViewById(R.id.switch_camera_button);
+        switchCameraButton.setOnClickListener(v -> switchCamera());
 
         mCameraHandler = new CameraHandler(this);
 
@@ -180,6 +178,23 @@ public class CameraCaptureActivity extends Activity
         Log.d(TAG, "onCreate complete: " + this);
     }
 
+    private void switchCamera() {
+        // Release the current camera
+        if (mCamera != null) {
+            mCamera.stopPreview();
+            mCamera.release();
+            mCamera = null;
+        }
+
+        // Toggle between front and back camera
+        isFrontCamera = !isFrontCamera;
+
+        releaseCamera();
+        pauseGlView();
+        openCamera(1280, 720);
+        resumeGlView();
+    }
+
     @Override
     protected void onResume() {
         Log.d(TAG, "onResume -- acquiring camera");
@@ -194,15 +209,21 @@ public class CameraCaptureActivity extends Activity
         } else {
             PermissionHelper.requestCameraPermission(this, false);
         }
-
-        mGLView.onResume();
-        mGLView.queueEvent(new Runnable() {
-            @Override
-            public void run() {
-                mRenderer.setCameraPreviewSize(mCameraPreviewWidth, mCameraPreviewHeight);
-            }
-        });
+        resumeGlView();
         Log.d(TAG, "onResume complete: " + this);
+    }
+
+    private void resumeGlView() {
+        mGLView.onResume();
+        mGLView.queueEvent(() -> mRenderer.setCameraPreviewSize(mCameraPreviewWidth, mCameraPreviewHeight));
+    }
+
+    private void pauseGlView() {
+        mGLView.queueEvent(() -> {
+            // Tell the renderer that it's about to be paused so it can clean up.
+            mRenderer.notifyPausing();
+        });
+        mGLView.onPause();
     }
 
     @Override
@@ -210,14 +231,7 @@ public class CameraCaptureActivity extends Activity
         Log.d(TAG, "onPause -- releasing camera");
         super.onPause();
         releaseCamera();
-        mGLView.queueEvent(new Runnable() {
-            @Override
-            public void run() {
-                // Tell the renderer that it's about to be paused so it can clean up.
-                mRenderer.notifyPausing();
-            }
-        });
-        mGLView.onPause();
+        pauseGlView();
         Log.d(TAG, "onPause complete");
     }
 
@@ -271,9 +285,16 @@ public class CameraCaptureActivity extends Activity
         int numCameras = Camera.getNumberOfCameras();
         for (int i = 0; i < numCameras; i++) {
             Camera.getCameraInfo(i, info);
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                mCamera = Camera.open(i);
-                break;
+            if (isFrontCamera) {
+                if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                    mCamera = Camera.open(i);
+                    break;
+                }
+            } else {
+                if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
+                    mCamera = Camera.open(i);
+                    break;
+                }
             }
         }
         if (mCamera == null) {
@@ -417,7 +438,7 @@ class CameraSurfaceRenderer implements GLSurfaceView.Renderer {
     private final float[] mSTMatrix = new float[16];
     private int mTextureId;
 
-    private SurfaceTexture mSurfaceTexture;
+    public SurfaceTexture mSurfaceTexture;
     private boolean mRecordingEnabled;
     private int mRecordingStatus;
     private final int mFrameCount;
